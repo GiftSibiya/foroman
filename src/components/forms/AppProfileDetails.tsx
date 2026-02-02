@@ -1,7 +1,7 @@
 import React from 'react';
 import { LuUser, LuCheck } from 'react-icons/lu';
 import AppLabledAutocomplete from './AppLabledAutocomplete';
-import { AppButton } from '../ComponentsIndex';
+import { AppButton } from '@components/ComponentsIndex';
 
 export interface ProfileField {
   icon: React.ReactNode;

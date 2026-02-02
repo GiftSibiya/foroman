@@ -4,7 +4,7 @@
  */
 
 import { skaftinClient } from '../backend';
-import type { Invoice, CreateInvoiceDto, UpdateInvoiceDto, ApiResponse } from '../types/invoice';
+import type { Invoice, CreateInvoiceDto } from '../types/invoice';
 
 export class InvoiceService {
   private static readonly TABLE_NAME = 'invoices';
