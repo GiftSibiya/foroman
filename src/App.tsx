@@ -22,6 +22,8 @@ import { QuotationListPage } from '@pages/admin/QuotationListPage';
 import { QuotationDetailPage } from '@pages/admin/QuotationDetailPage';
 import { QuotationFormPage } from '@pages/admin/QuotationFormPage';
 import { StatementsPage } from '@pages/admin/StatementsPage';
+import { PaymentsPage } from '@pages/admin/PaymentsPage';
+import { PaymentFormPage } from '@pages/admin/PaymentFormPage';
 import { SettingsPage } from '@pages/admin/SettingsPage';
 import { ProfileSettingsPage } from '@pages/admin/settings/ProfileSettingsPage';
 import { CompanySettingsPage } from '@pages/admin/settings/CompanySettingsPage';
@@ -66,6 +68,10 @@ function App() {
           <Route path="create" element={<QuotationFormPage />} />
           <Route path=":id" element={<QuotationDetailPage />} />
           <Route path=":id/edit" element={<QuotationFormPage />} />
+        </Route>
+        <Route path="payments" element={<Outlet />}>
+          <Route index element={<PaymentsPage />} />
+          <Route path="create" element={<PaymentFormPage />} />
         </Route>
         <Route path="statements" element={<StatementsPage />} />
         <Route path="settings" element={<SettingsPage />}>

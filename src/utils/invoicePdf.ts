@@ -111,6 +111,7 @@ export async function generateInvoicePdf(
     y = tableTop + PDF.tableHeaderHeight;
     doc.setFont('helvetica', 'normal');
 
+    const curr = invoice.currency || 'ZAR';
     lineItems.forEach((item) => {
       doc.setDrawColor(220, 220, 220);
       doc.line(margin, y, margin + tableWidth, y);
@@ -124,8 +125,8 @@ export async function generateInvoicePdf(
       doc.setFontSize(9);
       doc.text(desc, colStart(0) + 2, y + 5);
       doc.text(String(item.quantity), colStart(1) + 2, y + 5);
-      doc.text(formatCurrency(Number(item.unit_price)), colStart(2) + 2, y + 5);
-      doc.text(formatCurrency(Number(item.total)), colStart(3) + 2, y + 5);
+      doc.text(formatCurrency(Number(item.unit_price), curr), colStart(2) + 2, y + 5);
+      doc.text(formatCurrency(Number(item.total), curr), colStart(3) + 2, y + 5);
       y += PDF.tableRowHeight;
     });
     doc.setDrawColor(180, 180, 180);
@@ -137,16 +138,17 @@ export async function generateInvoicePdf(
   y += 6;
   const rightX = PDF.pageWidth - PDF.margin;
   doc.setFontSize(10);
+  const curr = invoice.currency || 'ZAR';
   doc.text('Subtotal', margin, y);
-  doc.text(formatCurrency(subtotal), rightX, y, { align: 'right' });
+  doc.text(formatCurrency(subtotal, curr), rightX, y, { align: 'right' });
   y += lh;
   doc.text(`VAT (${vatRate}%)`, margin, y);
-  doc.text(formatCurrency(vatAmount), rightX, y, { align: 'right' });
+  doc.text(formatCurrency(vatAmount, curr), rightX, y, { align: 'right' });
   y += lh;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('Total', margin, y);
-  doc.text(formatCurrency(total), rightX, y, { align: 'right' });
+  doc.text(formatCurrency(total, curr), rightX, y, { align: 'right' });
   y += lh + 2;
   drawHLine(doc, y, true);
   y += 8;

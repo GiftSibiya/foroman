@@ -181,7 +181,7 @@ export function DashboardPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-100">
-                      {formatCurrency(inv.total)}
+                      {formatCurrency(inv.total, inv.currency)}
                     </td>
                     <td className="px-5 py-3">
                       <Link

@@ -10,6 +10,7 @@ const initial: CreateItemDto = {
   sku: '',
   description: '',
   unit_price: 0,
+  cost_price: undefined,
   quantity: 0,
   tax_rate: undefined,
 };
@@ -34,6 +35,7 @@ export function ItemFormPage() {
             sku: item.sku ?? '',
             description: item.description ?? '',
             unit_price: item.unit_price ?? 0,
+            cost_price: item.cost_price,
             quantity: item.quantity ?? 0,
             tax_rate: item.tax_rate,
           });
@@ -71,6 +73,7 @@ export function ItemFormPage() {
         sku: form.sku?.trim() || undefined,
         description: form.description?.trim() || undefined,
         unit_price: unitPrice,
+        cost_price: form.cost_price != null ? Number(form.cost_price) : undefined,
         quantity: Number.isNaN(quantity) || quantity < 0 ? 0 : quantity,
         tax_rate: form.tax_rate != null ? Number(form.tax_rate) : undefined,
       };
@@ -153,7 +156,7 @@ export function ItemFormPage() {
           />
         </div>
         <div>
-          <label htmlFor="unit_price" className="block text-sm font-medium text-slate-700">Unit price *</label>
+          <label htmlFor="unit_price" className="block text-sm font-medium text-slate-700">Selling price *</label>
           <input
             id="unit_price"
             type="number"
@@ -162,6 +165,18 @@ export function ItemFormPage() {
             required
             value={form.unit_price === 0 ? '' : form.unit_price}
             onChange={(e) => update('unit_price', e.target.value ? Number(e.target.value) : 0)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label htmlFor="cost_price" className="block text-sm font-medium text-slate-700">Cost price (optional)</label>
+          <input
+            id="cost_price"
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.cost_price ?? ''}
+            onChange={(e) => update('cost_price', e.target.value ? Number(e.target.value) : undefined)}
             className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           />
         </div>

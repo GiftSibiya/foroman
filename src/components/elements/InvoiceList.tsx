@@ -68,7 +68,7 @@ export function InvoiceList() {
       {
         accessorKey: 'total',
         header: 'Total',
-        Cell: ({ cell }) => formatCurrency(Number(cell.getValue())),
+        Cell: ({ cell, row }) => formatCurrency(Number(cell.getValue()), row.original.currency),
         enableColumnFilter: false,
       },
       {

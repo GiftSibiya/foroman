@@ -72,9 +72,15 @@ export function ItemDetailPage() {
             <dd className="mt-1 text-slate-800">{item.quantity ?? 0}</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-slate-500">Unit price</dt>
+            <dt className="text-sm font-medium text-slate-500">Selling price</dt>
             <dd className="mt-1 text-slate-800">{formatCurrency(item.unit_price)}</dd>
           </div>
+          {item.cost_price != null && (
+            <div>
+              <dt className="text-sm font-medium text-slate-500">Cost price</dt>
+              <dd className="mt-1 text-slate-800">{formatCurrency(item.cost_price)}</dd>
+            </div>
+          )}
           <div>
             <dt className="text-sm font-medium text-slate-500">Tax rate</dt>
             <dd className="mt-1 text-slate-800">{item.tax_rate != null ? `${item.tax_rate}%` : '—'}</dd>

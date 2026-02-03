@@ -237,10 +237,10 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
                         {qty}
                       </td>
                       <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {formatCurrency(unitPrice)}
+                        {formatCurrency(unitPrice, invoice.currency)}
                       </td>
                       <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {formatCurrency(lineTotal)}
+                        {formatCurrency(lineTotal, invoice.currency)}
                       </td>
                     </tr>
                   );
@@ -261,15 +261,15 @@ export function InvoiceDetail({ invoiceId, onEdit, onDelete }: InvoiceDetailProp
           <div className="max-w-md ml-auto space-y-0">
             <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
               <span>Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{formatCurrency(subtotal, invoice.currency)}</span>
             </div>
             <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
               <span>VAT ({vatRate}%)</span>
-              <span>{formatCurrency(vatAmount)}</span>
+              <span>{formatCurrency(vatAmount, invoice.currency)}</span>
             </div>
             <div className="flex justify-between py-4 mt-2 pt-4 border-t-2 border-gray-800 dark:border-gray-300 text-xl font-semibold text-gray-900 dark:text-gray-100">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span>{formatCurrency(total, invoice.currency)}</span>
             </div>
           </div>
         </div>

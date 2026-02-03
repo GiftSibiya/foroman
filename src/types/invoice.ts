@@ -16,6 +16,7 @@ export interface Invoice {
   tax_rate?: number;
   tax_amount?: number;
   total: number;
+  currency?: string;
   notes?: string;
   created_at?: string;
   updated_at?: string;
@@ -46,6 +47,7 @@ export interface CreateInvoiceDto {
   tax_rate?: number;
   tax_amount?: number;
   total: number;
+  currency?: string;
   notes?: string;
   items?: Omit<InvoiceItem, 'id' | 'invoice_id'>[];
 }

@@ -1,8 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { LuFileDown } from 'react-icons/lu';
+import { useNavigate } from 'react-router-dom';
+import { LuFileDown, LuFileText } from 'react-icons/lu';
 import type { Quotation, QuotationLine } from '../../types/quotation';
+import type { CreateInvoiceDto } from '../../types/invoice';
 import QuotationService from '../../services/quotationService';
 import QuotationLineService from '../../services/quotationLineService';
+import InvoiceService from '../../services/invoiceService';
+import InvoiceItemService from '../../services/invoiceItemService';
+import { useCompanyStore } from '../../stores/data/CompanyStore';
 import { formatCurrency } from '../../utils/currency';
 import { generateQuotationPdf } from '../../utils/quotationPdf';
 
@@ -13,9 +18,11 @@ interface QuotationDetailProps {
 }
 
 export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDetailProps) {
+  const navigate = useNavigate();
   const [quotation, setQuotation] = useState<Quotation | null>(null);
   const [lineItems, setLineItems] = useState<QuotationLine[]>([]);
   const [loading, setLoading] = useState(true);
+  const [converting, setConverting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,6 +62,76 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
     }
   };
 
+  const handleConvertToInvoice = useCallback(async () => {
+    if (!quotation) return;
+    const canConvert = quotation.status === 'accepted' || quotation.status === 'sent';
+    if (!canConvert && quotation.status !== 'converted') {
+      const ok = confirm(
+        'This quotation is not accepted/sent. Convert anyway? (Accepted or sent is recommended.)'
+      );
+      if (!ok) return;
+    }
+    if (quotation.converted_invoice_id != null) {
+      navigate(`/app/invoices/${quotation.converted_invoice_id}`);
+      return;
+    }
+    try {
+      setConverting(true);
+      const count = await InvoiceService.count();
+      const invoiceNumber = String(count + 1).padStart(4, '0');
+      const issueDate = quotation.issue_date.split('T')[0];
+      const validUntil = quotation.valid_until ? new Date(quotation.valid_until) : null;
+      const issueDateObj = new Date(quotation.issue_date);
+      const dueDate =
+        validUntil && validUntil > issueDateObj
+          ? validUntil.toISOString().split('T')[0]
+          : new Date(issueDateObj.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const companyId = useCompanyStore.getState().currentCompany?.id;
+      const payload: CreateInvoiceDto = {
+        invoice_number: invoiceNumber,
+        customer_name: quotation.customer_name,
+        customer_email: quotation.customer_email,
+        customer_address: quotation.customer_address,
+        issue_date: issueDate,
+        due_date: dueDate,
+        status: 'draft',
+        subtotal: Number(quotation.subtotal) || 0,
+        tax_rate: quotation.tax_rate,
+        tax_amount: quotation.tax_amount,
+        total: Number(quotation.total) || 0,
+        currency: quotation.currency || 'ZAR',
+        notes: quotation.notes,
+        ...(companyId != null && { company_id: companyId }),
+      };
+      const created = await InvoiceService.create(payload);
+      const newId = created?.id;
+      if (newId != null && lineItems.length > 0) {
+        await InvoiceItemService.insertMany(
+          newId,
+          lineItems.map((line) => ({
+            description: line.description,
+            quantity: line.quantity,
+            unit_price: Number(line.unit_price) || 0,
+            total: Number(line.total) || 0,
+            ...(line.item_id != null && { item_id: line.item_id }),
+          }))
+        );
+      }
+      try {
+        await QuotationService.update(quotationId, {
+          status: 'converted',
+          ...(newId != null && { converted_invoice_id: newId }),
+        });
+      } catch {
+        // Backend may not have converted_invoice_id column yet
+      }
+      navigate(`/app/invoices/${newId}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to convert to invoice');
+      setConverting(false);
+    }
+  }, [quotation, lineItems, quotationId, navigate]);
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -70,6 +147,7 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
       accepted: 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300',
       declined: 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300',
       expired: 'bg-gray-50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400',
+      converted: 'bg-teal-50 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
     };
     return statusMap[status] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400';
   };
@@ -119,6 +197,15 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
           >
             <LuFileDown size={18} aria-hidden />
             Export PDF
+          </button>
+          <button
+            type="button"
+            onClick={handleConvertToInvoice}
+            disabled={converting}
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-1 md:flex-none min-w-0"
+          >
+            <LuFileText size={18} aria-hidden />
+            {quotation.converted_invoice_id != null ? 'View invoice' : converting ? 'Converting…' : 'Convert to invoice'}
           </button>
           {onEdit && (
             <button
@@ -239,10 +326,10 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
                         {qty}
                       </td>
                       <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {formatCurrency(unitPrice)}
+                        {formatCurrency(unitPrice, quotation.currency)}
                       </td>
                       <td className="px-3 py-2 text-right text-gray-800 dark:text-gray-200">
-                        {formatCurrency(lineTotal)}
+                        {formatCurrency(lineTotal, quotation.currency)}
                       </td>
                     </tr>
                   );
@@ -263,15 +350,15 @@ export function QuotationDetail({ quotationId, onEdit, onDelete }: QuotationDeta
           <div className="max-w-md ml-auto space-y-0">
             <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
               <span>Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{formatCurrency(subtotal, quotation.currency)}</span>
             </div>
             <div className="flex justify-between py-3 border-b border-gray-200 dark:border-gray-600 text-base text-gray-800 dark:text-gray-200">
               <span>VAT ({vatRate}%)</span>
-              <span>{formatCurrency(vatAmount)}</span>
+              <span>{formatCurrency(vatAmount, quotation.currency)}</span>
             </div>
             <div className="flex justify-between py-4 mt-2 pt-4 border-t-2 border-gray-800 dark:border-gray-300 text-xl font-semibold text-gray-900 dark:text-gray-100">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span>{formatCurrency(total, quotation.currency)}</span>
             </div>
           </div>
         </div>

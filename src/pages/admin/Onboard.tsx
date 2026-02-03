@@ -54,7 +54,8 @@ export function Onboard() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50 px-4 py-12">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <Link to="/app" className="text-2xl font-bold text-slate-900">
+          <Link to="/app" className="inline-flex items-center gap-2 text-2xl font-bold text-slate-900 no-underline">
+            <img src="/favicon.png" alt="" className="h-10 w-10 rounded-lg object-contain" />
             Foroman
           </Link>
           <h2 className="mt-4 text-xl font-semibold text-slate-800">Company details</h2>

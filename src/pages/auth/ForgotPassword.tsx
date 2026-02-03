@@ -36,8 +36,9 @@ export function ForgotPassword() {
         <div className="text-center">
           <Link
             to="/"
-            className="text-2xl font-bold text-slate-900 dark:text-white no-underline"
+            className="inline-flex items-center gap-2 text-2xl font-bold text-slate-900 dark:text-white no-underline"
           >
+            <img src="/favicon.png" alt="" className="h-10 w-10 rounded-lg object-contain" />
             Foroman
           </Link>
           <h2 className="mt-4 text-xl font-semibold text-slate-800 dark:text-slate-100">

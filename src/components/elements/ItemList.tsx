@@ -53,7 +53,7 @@ export function ItemList() {
       },
       {
         accessorKey: 'unit_price',
-        header: 'Unit price',
+        header: 'Selling price',
         Cell: ({ cell }) => formatCurrency(Number(cell.getValue())),
         enableColumnFilter: false,
       },

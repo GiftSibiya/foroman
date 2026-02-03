@@ -35,9 +35,10 @@ export function AppSidebar() {
       <div className={`px-5 py-4 border-b ${borderCls}`}>
         <Link
           to="/app/dashboard"
-          className={`text-xl font-bold tracking-tight no-underline ${logoCls}`}
+          className={`flex items-center gap-2.5 no-underline ${logoCls}`}
         >
-          Foroman
+          <img src="/favicon.png" alt="" className="h-8 w-8 rounded-lg object-contain shrink-0" />
+          <span className="text-xl font-bold tracking-tight">Foroman</span>
         </Link>
       </div>
       <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
@@ -46,6 +47,7 @@ export function AppSidebar() {
         {navLink('/app/items', 'Stock')}
         {navLink('/app/invoices', 'Invoices')}
         {navLink('/app/quotations', 'Quotations')}
+        {navLink('/app/payments', 'Payments')}
         {navLink('/app/statements', 'Statements')}
       </nav>
       <div className={`px-3 py-4 border-t ${borderCls} space-y-1`}>

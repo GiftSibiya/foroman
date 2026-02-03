@@ -8,7 +8,7 @@ import CustomerService from '../../services/customerService';
 import ItemService from '../../services/itemService';
 import { useCompanyStore } from '../../stores/data/CompanyStore';
 import AppLabledAutocomplete from '../forms/AppLabledAutocomplete';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency, SUPPORTED_CURRENCIES } from '../../utils/currency';
 
 interface InvoiceFormProps {
   invoiceId?: number;
@@ -51,6 +51,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
     tax_rate: 15,
     tax_amount: 0,
     total: 0,
+    currency: 'ZAR',
     notes: '',
   });
 
@@ -103,6 +104,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
           tax_rate: invoice.tax_rate || 0,
           tax_amount: invoice.tax_amount || 0,
           total: invoice.total,
+          currency: invoice.currency || 'ZAR',
           notes: invoice.notes || '',
         });
         setSelectedCustomer(null);
@@ -342,6 +344,23 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
               required
             />
           </div>
+          <div className={groupClass}>
+            <label htmlFor="currency" className={labelClass}>
+              Currency
+            </label>
+            <select
+              id="currency"
+              value={formData.currency || 'ZAR'}
+              onChange={(e) => handleChange('currency', e.target.value)}
+              className={inputClass}
+            >
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
@@ -456,7 +475,7 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
                     <input
                       type="text"
                       readOnly
-                      value={formatCurrency(lineTotal(row))}
+                      value={formatCurrency(lineTotal(row), formData.currency)}
                       className={`${inputClass} ${readonlyClass}`}
                     />
                   </div>
@@ -515,27 +534,27 @@ export function InvoiceForm({ invoiceId, onSuccess, onCancel }: InvoiceFormProps
           <div className="rounded-md bg-gray-50 dark:bg-gray-700/50 p-3 space-y-1 text-sm">
             <div className="flex justify-between text-gray-700 dark:text-gray-300">
               <span>Subtotal (lines)</span>
-              <span>{formatCurrency(totals.linesSubtotal)}</span>
+              <span>{formatCurrency(totals.linesSubtotal, formData.currency)}</span>
             </div>
             {globalDiscountPercent > 0 && (
               <>
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Discount ({globalDiscountPercent}%)</span>
-                  <span>-{formatCurrency(totals.discountAmount)}</span>
+                  <span>-{formatCurrency(totals.discountAmount, formData.currency)}</span>
                 </div>
                 <div className="flex justify-between text-gray-700 dark:text-gray-300">
                   <span>Subtotal after discount</span>
-                  <span>{formatCurrency(totals.subtotalAfterDiscount)}</span>
+                  <span>{formatCurrency(totals.subtotalAfterDiscount, formData.currency)}</span>
                 </div>
               </>
             )}
             <div className="flex justify-between text-gray-600 dark:text-gray-400">
               <span>Tax ({(formData.tax_rate ?? 0)}%)</span>
-              <span>{formatCurrency(totals.taxAmount)}</span>
+              <span>{formatCurrency(totals.taxAmount, formData.currency)}</span>
             </div>
             <div className="flex justify-between font-semibold text-base pt-1 border-t border-gray-200 dark:border-gray-600">
               <span>Total</span>
-              <span>{formatCurrency(totals.total)}</span>
+              <span>{formatCurrency(totals.total, formData.currency)}</span>
             </div>
           </div>
         </div>

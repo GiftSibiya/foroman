@@ -16,12 +16,14 @@ export interface Quotation {
   tax_rate?: number;
   tax_amount?: number;
   total: number;
+  currency?: string;
   notes?: string;
+  converted_invoice_id?: number;
   created_at?: string;
   updated_at?: string;
 }
 
-export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired' | 'converted';
 
 export interface QuotationLine {
   id?: number;
@@ -46,6 +48,8 @@ export interface CreateQuotationDto {
   tax_rate?: number;
   tax_amount?: number;
   total: number;
+  currency?: string;
   notes?: string;
+  converted_invoice_id?: number;
   items?: Omit<QuotationLine, 'id' | 'quotation_id'>[];
 }
