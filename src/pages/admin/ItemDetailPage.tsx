@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import ItemService from '@/services/itemService';
 import type { Item } from '@/types/item';
-
-function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-}
+import { formatCurrency } from '@/utils/currency';
 
 export function ItemDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -69,6 +66,10 @@ export function ItemDetailPage() {
           <div>
             <dt className="text-sm font-medium text-slate-500">SKU</dt>
             <dd className="mt-1 text-slate-800">{item.sku ?? '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-sm font-medium text-slate-500">Quantity</dt>
+            <dd className="mt-1 text-slate-800">{item.quantity ?? 0}</dd>
           </div>
           <div>
             <dt className="text-sm font-medium text-slate-500">Unit price</dt>

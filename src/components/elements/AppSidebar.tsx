@@ -1,41 +1,46 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import useAuthStore from '../../stores/data/AuthStore';
+import { Link, useLocation } from 'react-router-dom';
+import useThemeStore from '../../stores/state/ThemeStore';
 
 export function AppSidebar() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const logout = useAuthStore((s) => s.logout);
+  const theme = useThemeStore((s) => s.theme);
+  const isDark = theme === 'dark';
 
   const navLink = (to: string, label: string, exact?: boolean) => {
     const isActive = exact
       ? location.pathname === to
       : (location.pathname === to || location.pathname.startsWith(to + '/'));
+    const activeCls = isDark
+      ? 'bg-indigo-500/25 text-indigo-200'
+      : 'bg-indigo-600/20 text-indigo-800';
+    const inactiveCls = isDark
+      ? 'text-slate-400 hover:bg-white/10 hover:text-slate-200'
+      : 'text-slate-600 hover:bg-slate-300 hover:text-slate-900';
     return (
       <Link
         to={to}
-        className={`
-          block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
-          ${isActive
-            ? 'bg-indigo-500/25 text-indigo-200'
-            : 'text-slate-400 hover:bg-white/10 hover:text-slate-200'}
-        `}
+        className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${isActive ? activeCls : inactiveCls}`}
       >
         {label}
       </Link>
     );
   };
 
+  const sidebarBg = isDark ? 'bg-slate-800' : 'bg-slate-200 dark:bg-slate-800';
+  const borderCls = isDark ? 'border-white/10' : 'border-slate-300 dark:border-white/10';
+  const logoCls = isDark ? 'text-white' : 'text-slate-900 dark:text-white';
+
   return (
-    <aside className="w-[260px] min-w-[260px] flex flex-col shrink-0 bg-slate-800 text-slate-200">
-      <div className="px-5 py-4 border-b border-white/10">
+    <aside className={`w-[260px] min-w-[260px] flex flex-col shrink-0 ${sidebarBg} text-slate-800 dark:text-slate-200 ${isDark ? 'dark' : ''}`}>
+      <div className={`px-5 py-4 border-b ${borderCls}`}>
         <Link
           to="/app/dashboard"
-          className="text-xl font-bold tracking-tight text-white no-underline"
+          className={`text-xl font-bold tracking-tight no-underline ${logoCls}`}
         >
           Foroman
         </Link>
       </div>
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+      <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
         {navLink('/app/dashboard', 'Dashboard')}
         {navLink('/app/customers', 'Customers')}
         {navLink('/app/items', 'Stock')}
@@ -43,17 +48,12 @@ export function AppSidebar() {
         {navLink('/app/quotations', 'Quotations')}
         {navLink('/app/statements', 'Statements')}
       </nav>
-      <div className="px-3 py-4 border-t border-white/10">
-        <button
-          type="button"
-          onClick={() => {
-            logout();
-            navigate('/login', { replace: true });
-          }}
-          className="w-full px-4 py-2.5 rounded-lg text-sm font-medium text-left text-slate-400 bg-transparent border-none cursor-pointer hover:bg-white/10 hover:text-slate-200 transition-colors"
-        >
-          Logout
-        </button>
+      <div className={`px-3 py-4 border-t ${borderCls} space-y-1`}>
+        <p className="px-4 py-1 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Settings
+        </p>
+        {navLink('/app/settings/company', 'Company')}
+        {navLink('/app/settings/preferences', 'Preferences')}
       </div>
     </aside>
   );

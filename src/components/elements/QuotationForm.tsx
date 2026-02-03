@@ -1,0 +1,572 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import type { CreateQuotationDto, QuotationStatus, QuotationLine } from '../../types/quotation';
+import type { Customer } from '../../types/customer';
+import type { Item } from '../../types/item';
+import QuotationService from '../../services/quotationService';
+import QuotationLineService from '../../services/quotationLineService';
+import CustomerService from '../../services/customerService';
+import ItemService from '../../services/itemService';
+import { useCompanyStore } from '../../stores/data/CompanyStore';
+import AppLabledAutocomplete from '../forms/AppLabledAutocomplete';
+import { formatCurrency } from '../../utils/currency';
+
+interface QuotationFormProps {
+  quotationId?: number;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+interface LineRow {
+  id: string;
+  itemId?: number;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  discountPercent: number;
+}
+
+function lineTotal(row: LineRow): number {
+  const beforeDiscount = row.quantity * row.unit_price;
+  return beforeDiscount * (1 - row.discountPercent / 100);
+}
+
+export function QuotationForm({ quotationId, onSuccess, onCancel }: QuotationFormProps) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [stockItems, setStockItems] = useState<Item[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [lineRows, setLineRows] = useState<LineRow[]>([]);
+  const [globalDiscountPercent, setGlobalDiscountPercent] = useState(0);
+
+  const [formData, setFormData] = useState<CreateQuotationDto>({
+    quotation_number: '',
+    customer_name: '',
+    customer_email: '',
+    customer_address: '',
+    issue_date: new Date().toISOString().split('T')[0],
+    valid_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'draft',
+    subtotal: 0,
+    tax_rate: 15,
+    tax_amount: 0,
+    total: 0,
+    notes: '',
+  });
+
+  useEffect(() => {
+    Promise.all([CustomerService.findAll(), ItemService.findAll()]).then(
+      ([custs, items]) => {
+        setCustomers(custs);
+        setStockItems(items);
+      }
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!quotationId) {
+      QuotationService.count()
+        .then((count) => {
+          setFormData((prev) => ({
+            ...prev,
+            quotation_number: String(count + 1).padStart(4, '0'),
+          }));
+        })
+        .catch(() => {});
+    }
+  }, [quotationId]);
+
+  useEffect(() => {
+    if (quotationId) loadQuotation();
+  }, [quotationId]);
+
+  const loadQuotation = async () => {
+    if (!quotationId) return;
+    try {
+      setLoading(true);
+      const [quotation, items] = await Promise.all([
+        QuotationService.findById(quotationId),
+        QuotationLineService.findByQuotationId(quotationId),
+      ]);
+      if (quotation) {
+        setFormData({
+          quotation_number: quotation.quotation_number,
+          customer_name: quotation.customer_name,
+          customer_email: quotation.customer_email || '',
+          customer_address: quotation.customer_address || '',
+          issue_date: quotation.issue_date.split('T')[0],
+          valid_until: quotation.valid_until ? quotation.valid_until.split('T')[0] : '',
+          status: quotation.status,
+          subtotal: quotation.subtotal,
+          tax_rate: quotation.tax_rate || 0,
+          tax_amount: quotation.tax_amount || 0,
+          total: quotation.total,
+          notes: quotation.notes || '',
+        });
+        setSelectedCustomer(null);
+        const rows: LineRow[] = (items || []).map((item) => {
+          const qty = item.quantity || 1;
+          const up = Number(item.unit_price) || 0;
+          const tot = Number(item.total) || 0;
+          const beforeDiscount = qty * up;
+          const discountPercent =
+            beforeDiscount > 0 ? Math.round((1 - tot / beforeDiscount) * 100 * 100) / 100 : 0;
+          return {
+            id: `line-${item.id ?? Math.random()}`,
+            itemId: item.item_id,
+            description: item.description,
+            quantity: qty,
+            unit_price: up,
+            discountPercent,
+          };
+        });
+        setLineRows(rows);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load quotation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const totals = useMemo(() => {
+    const linesSubtotal = lineRows.reduce((sum, row) => sum + lineTotal(row), 0);
+    const discountAmount = (linesSubtotal * globalDiscountPercent) / 100;
+    const subtotalAfterDiscount = linesSubtotal - discountAmount;
+    const taxRate = formData.tax_rate ?? 0;
+    const taxAmount = (subtotalAfterDiscount * taxRate) / 100;
+    const total = subtotalAfterDiscount + taxAmount;
+    return {
+      linesSubtotal,
+      discountAmount,
+      subtotalAfterDiscount,
+      taxAmount,
+      total,
+    };
+  }, [lineRows, globalDiscountPercent, formData.tax_rate]);
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      subtotal: totals.subtotalAfterDiscount,
+      tax_amount: totals.taxAmount,
+      total: totals.total,
+    }));
+  }, [totals.subtotalAfterDiscount, totals.taxAmount, totals.total]);
+
+  const handleChange = useCallback((field: keyof CreateQuotationDto, value: unknown) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const handleCustomerSelect = useCallback((customer: Customer) => {
+    setSelectedCustomer(customer);
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: customer.name,
+      customer_email: customer.email || '',
+      customer_address: customer.address || '',
+    }));
+  }, []);
+
+  const handleCustomerClear = useCallback(() => {
+    setSelectedCustomer(null);
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: '',
+      customer_email: '',
+      customer_address: '',
+    }));
+  }, []);
+
+  const addLine = useCallback(() => {
+    setLineRows((prev) => [
+      ...prev,
+      {
+        id: crypto.randomUUID?.() ?? `line-${Date.now()}`,
+        description: '',
+        quantity: 1,
+        unit_price: 0,
+        discountPercent: 0,
+      },
+    ]);
+  }, []);
+
+  const removeLine = useCallback((id: string) => {
+    setLineRows((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  const updateLine = useCallback((id: string, updates: Partial<LineRow>) => {
+    setLineRows((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+    );
+  }, []);
+
+  const onItemSelect = useCallback(
+    (id: string) => (item: Item) => {
+      updateLine(id, {
+        itemId: item.id,
+        description: item.name,
+        unit_price: item.unit_price ?? 0,
+      });
+    },
+    [updateLine]
+  );
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!formData.quotation_number || !formData.customer_name) {
+      setError('Quotation number and customer are required');
+      return;
+    }
+    const items: (Omit<QuotationLine, 'id' | 'quotation_id'> & { item_id?: number })[] = lineRows
+      .filter((r) => r.description && r.quantity > 0)
+      .map((r) => ({
+        description: r.description,
+        quantity: r.quantity,
+        unit_price: r.unit_price,
+        total: lineTotal(r),
+        item_id: r.itemId,
+      }));
+    const companyId = useCompanyStore.getState().currentCompany?.id;
+    const payload: CreateQuotationDto = {
+      ...formData,
+      ...(companyId != null && { company_id: companyId }),
+      items: items.length ? items : undefined,
+    };
+    try {
+      setLoading(true);
+      if (quotationId) {
+        await QuotationService.update(quotationId, payload);
+        await QuotationLineService.deleteByQuotationId(quotationId);
+        if (items.length) await QuotationLineService.insertMany(quotationId, items);
+      } else {
+        const created = await QuotationService.create(payload);
+        const newId = created?.id;
+        if (newId != null && items.length) await QuotationLineService.insertMany(newId, items);
+      }
+      onSuccess?.();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save quotation');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const inputClass =
+    'w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-indigo-500 dark:focus:border-indigo-400 transition-colors font-[inherit]';
+  const readonlyClass = 'bg-gray-100 dark:bg-gray-600 cursor-not-allowed';
+  const labelClass = 'mb-1 text-sm font-medium text-gray-700 dark:text-gray-300';
+  const groupClass = 'flex flex-col';
+
+  if (loading && quotationId) {
+    return (
+      <div className="max-w-[900px] mx-auto px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+        Loading quotation...
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-[900px] mx-auto">
+      <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
+        {quotationId ? 'Edit Quotation' : 'Create Quotation'}
+      </h2>
+      {error && (
+        <div className="mb-2 px-3 py-2 text-sm rounded-md bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+          {error}
+        </div>
+      )}
+      <form
+        onSubmit={handleSubmit}
+        className="p-4 rounded-lg shadow bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
+      >
+        <div className="grid grid-cols-1 gap-x-4 gap-y-2 mb-2 md:grid-cols-4">
+          <div className={groupClass}>
+            <label htmlFor="quotation_number" className={labelClass}>
+              Quotation #
+            </label>
+            <input
+              id="quotation_number"
+              type="text"
+              value={formData.quotation_number}
+              onChange={(e) => handleChange('quotation_number', e.target.value)}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div className={groupClass}>
+            <label htmlFor="status" className={labelClass}>
+              Status
+            </label>
+            <select
+              id="status"
+              value={formData.status}
+              onChange={(e) => handleChange('status', e.target.value as QuotationStatus)}
+              className={inputClass}
+            >
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="accepted">Accepted</option>
+              <option value="declined">Declined</option>
+              <option value="expired">Expired</option>
+            </select>
+          </div>
+          <div className={groupClass}>
+            <label htmlFor="issue_date" className={labelClass}>
+              Issue Date
+            </label>
+            <input
+              id="issue_date"
+              type="date"
+              value={formData.issue_date}
+              onChange={(e) => handleChange('issue_date', e.target.value)}
+              className={inputClass}
+              required
+            />
+          </div>
+          <div className={groupClass}>
+            <label htmlFor="valid_until" className={labelClass}>
+              Valid Until
+            </label>
+            <input
+              id="valid_until"
+              type="date"
+              value={formData.valid_until || ''}
+              onChange={(e) => handleChange('valid_until', e.target.value || undefined)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+
+        <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+            Customer
+          </h3>
+          <AppLabledAutocomplete
+            label="Customer *"
+            options={customers}
+            value={selectedCustomer?.id != null ? String(selectedCustomer.id) : ''}
+            displayValue={selectedCustomer?.name ?? formData.customer_name}
+            accessor="name"
+            valueAccessor="id"
+            onSelect={handleCustomerSelect}
+            onClear={handleCustomerClear}
+            required
+            placeholder="Search customer..."
+          />
+          {(formData.customer_email || formData.customer_address) && (
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+              {formData.customer_email && <div>{formData.customer_email}</div>}
+              {formData.customer_address && <div>{formData.customer_address}</div>}
+            </div>
+          )}
+        </div>
+
+        <div className="pb-3 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+              Line items
+            </h3>
+            <button
+              type="button"
+              onClick={addLine}
+              className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:underline"
+            >
+              + Add line
+            </button>
+          </div>
+          {lineRows.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400 py-2">
+              No items. Click &quot;Add line&quot; and select from stock.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {lineRows.map((row) => (
+                <div
+                  key={row.id}
+                  className="grid grid-cols-1 gap-2 p-2 rounded-md bg-gray-50 dark:bg-gray-700/50 md:grid-cols-12 md:items-end"
+                >
+                  <div className="md:col-span-4">
+                    <AppLabledAutocomplete
+                      label=""
+                      options={stockItems}
+                      value={row.itemId != null ? String(row.itemId) : ''}
+                      displayValue={row.description}
+                      accessor="name"
+                      valueAccessor="id"
+                      onSelect={onItemSelect(row.id)}
+                      onClear={() =>
+                        updateLine(row.id, { itemId: undefined, description: '', unit_price: 0 })
+                      }
+                      placeholder="Item"
+                      className="mb-0"
+                    />
+                  </div>
+                  <div className={`${groupClass} md:col-span-1`}>
+                    <label className={labelClass}>Qty</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={row.quantity}
+                      onChange={(e) =>
+                        updateLine(row.id, { quantity: parseInt(e.target.value, 10) || 1 })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className={`${groupClass} md:col-span-2`}>
+                    <label className={labelClass}>Unit price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={row.unit_price}
+                      onChange={(e) =>
+                        updateLine(row.id, {
+                          unit_price: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className={`${groupClass} md:col-span-2`}>
+                    <label className={labelClass}>Discount %</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      max={100}
+                      value={row.discountPercent}
+                      onChange={(e) =>
+                        updateLine(row.id, {
+                          discountPercent: parseFloat(e.target.value) || 0,
+                        })
+                      }
+                      className={inputClass}
+                    />
+                  </div>
+                  <div className={`${groupClass} md:col-span-2`}>
+                    <label className={labelClass}>Line total</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={formatCurrency(lineTotal(row))}
+                      className={`${inputClass} ${readonlyClass}`}
+                    />
+                  </div>
+                  <div className="flex items-end md:col-span-1">
+                    <button
+                      type="button"
+                      onClick={() => removeLine(row.id)}
+                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+                      aria-label="Remove line"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="pb-3 mb-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+            Totals
+          </h3>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-2 mb-2 md:grid-cols-2">
+            <div className={groupClass}>
+              <label className={labelClass}>Global discount %</label>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                max={100}
+                value={globalDiscountPercent}
+                onChange={(e) =>
+                  setGlobalDiscountPercent(parseFloat(e.target.value) || 0)
+                }
+                className={inputClass}
+              />
+            </div>
+            <div className={groupClass}>
+              <label htmlFor="tax_rate" className={labelClass}>
+                Tax %
+              </label>
+              <input
+                id="tax_rate"
+                type="number"
+                step="0.01"
+                min={0}
+                value={formData.tax_rate}
+                onChange={(e) =>
+                  handleChange('tax_rate', parseFloat(e.target.value) || 0)
+                }
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="rounded-md bg-gray-50 dark:bg-gray-700/50 p-3 space-y-1 text-sm">
+            <div className="flex justify-between text-gray-700 dark:text-gray-300">
+              <span>Subtotal (lines)</span>
+              <span>{formatCurrency(totals.linesSubtotal)}</span>
+            </div>
+            {globalDiscountPercent > 0 && (
+              <>
+                <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                  <span>Discount ({globalDiscountPercent}%)</span>
+                  <span>-{formatCurrency(totals.discountAmount)}</span>
+                </div>
+                <div className="flex justify-between text-gray-700 dark:text-gray-300">
+                  <span>Subtotal after discount</span>
+                  <span>{formatCurrency(totals.subtotalAfterDiscount)}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between text-gray-600 dark:text-gray-400">
+              <span>Tax ({(formData.tax_rate ?? 0)}%)</span>
+              <span>{formatCurrency(totals.taxAmount)}</span>
+            </div>
+            <div className="flex justify-between font-semibold text-base pt-1 border-t border-gray-200 dark:border-gray-600">
+              <span>Total</span>
+              <span>{formatCurrency(totals.total)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className={groupClass}>
+          <label htmlFor="notes" className={labelClass}>
+            Notes
+          </label>
+          <textarea
+            id="notes"
+            value={formData.notes}
+            onChange={(e) => handleChange('notes', e.target.value)}
+            rows={2}
+            className={`${inputClass} resize-y min-h-10`}
+          />
+        </div>
+
+        <div className="flex flex-col-reverse gap-2 pt-3 mt-4 border-t border-gray-200 dark:border-gray-700 sm:flex-row sm:justify-end">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="w-full px-4 py-1.5 text-sm font-medium rounded-md transition-colors sm:w-auto bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full px-4 py-1.5 text-sm font-medium text-white rounded-md transition-colors sm:w-auto bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Saving...' : quotationId ? 'Update Quotation' : 'Create Quotation'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

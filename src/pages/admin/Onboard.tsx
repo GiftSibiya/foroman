@@ -2,10 +2,14 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import useAuthStore from '@stores/data/AuthStore';
+import { useCompanyStore } from '@stores/data/CompanyStore';
+import CompanyService from '@/services/companyService';
 
 export function Onboard() {
   const navigate = useNavigate();
+  const sessionUser = useAuthStore((s) => s.sessionUser);
   const isLoggedIn = !!useAuthStore((s) => s.accessToken ?? s.sessionUser?.accessToken);
+  const fetchUserCompanies = useCompanyStore((s) => s.fetchUserCompanies);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [taxId, setTaxId] = useState('');
@@ -17,12 +21,22 @@ export function Onboard() {
       toast.error('Company name is required');
       return;
     }
+    if (!isLoggedIn || !sessionUser) {
+      toast.error('Please log in to save your company');
+      navigate('/login', { replace: true });
+      return;
+    }
     setLoading(true);
     try {
-      // TODO: call companies API when Skaftin table exists
-      // await companyService.create({ name: name.trim(), address: address.trim(), tax_id: taxId.trim() });
+      const company = await CompanyService.create({
+        name: name.trim(),
+        address: address.trim() || undefined,
+        tax_id: taxId.trim() || undefined,
+      });
+      await CompanyService.linkUserToCompany(Number(sessionUser.id), company.id!);
+      await fetchUserCompanies(Number(sessionUser.id));
       toast.success('Company saved');
-      navigate(isLoggedIn ? '/app' : '/login', { replace: true });
+      navigate('/app/dashboard', { replace: true });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save company';
       toast.error(message);
@@ -33,7 +47,7 @@ export function Onboard() {
 
   const handleSkip = () => {
     toast.success('You can add your company later in Settings');
-    navigate(isLoggedIn ? '/app' : '/login', { replace: true });
+    navigate(isLoggedIn ? '/app/dashboard' : '/login', { replace: true });
   };
 
   return (

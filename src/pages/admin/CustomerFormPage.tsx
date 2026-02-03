@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import CustomerService from '@/services/customerService';
+import { useCompanyStore } from '@/stores/data/CompanyStore';
 import type { CreateCustomerDto } from '@/types/customer';
 import toast from 'react-hot-toast';
 
@@ -30,6 +31,7 @@ const BUSINESS_TYPES = [
 
 export function CustomerFormPage() {
   const navigate = useNavigate();
+  const companyId = useCompanyStore((s) => s.currentCompany?.id);
   const [form, setForm] = useState<CreateCustomerDto>(initial);
   const [saving, setSaving] = useState(false);
 
@@ -47,6 +49,7 @@ export function CustomerFormPage() {
     try {
       await CustomerService.create({
         ...form,
+        ...(companyId != null && { company_id: companyId }),
         name: form.name.trim(),
         email: form.email?.trim() || undefined,
         phone: form.phone?.trim() || undefined,
@@ -72,6 +75,8 @@ export function CustomerFormPage() {
   const inputClass =
     'mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500';
 
+  const hasNoCompany = companyId == null;
+
   return (
     <div className="flex min-h-0 flex-col">
       <div className="flex shrink-0 items-center justify-between">
@@ -83,6 +88,14 @@ export function CustomerFormPage() {
           ← Back to customers
         </Link>
       </div>
+      {hasNoCompany && (
+        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Add your company first before creating customers.{' '}
+          <Link to="/onboard" className="font-medium text-amber-900 underline hover:no-underline">
+            Add company
+          </Link>
+        </div>
+      )}
       <form
         onSubmit={handleSubmit}
         className="mt-6 flex min-h-0 flex-1 flex-col rounded-xl border border-slate-200 bg-white p-6 shadow-sm lg:p-8"
@@ -234,7 +247,7 @@ export function CustomerFormPage() {
         <div className="mt-8 flex shrink-0 gap-3 border-t border-slate-200 pt-6">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || hasNoCompany}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {saving ? 'Saving…' : 'Create customer'}

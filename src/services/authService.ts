@@ -165,4 +165,47 @@ export const authService = {
   logout(): void {
     useAuthStore.getState().logout();
   },
+
+  async forgotPassword(email: string): Promise<{ method: string; destination: string }> {
+    const response = await skaftinClient.post<{
+      data?: { method?: string; destination?: string };
+      method?: string;
+      destination?: string;
+    }>('/app-api/auth/forgot-password', { email, method: 'email' });
+    const data = (response as any).data ?? response;
+    return {
+      method: data?.method ?? 'email',
+      destination: data?.destination ?? email,
+    };
+  },
+
+  async verifyForgotPasswordOtp(
+    email: string,
+    code: string
+  ): Promise<{ reset_token: string; expires_in_minutes: number }> {
+    const response = await skaftinClient.post<{
+      data?: { reset_token?: string; expires_in_minutes?: number };
+      reset_token?: string;
+      expires_in_minutes?: number;
+    }>('/app-api/auth/verify-forgot-password-otp', { email, code });
+    const data = (response as any).data ?? response;
+    const token = data?.reset_token;
+    if (!token) throw new Error('Invalid verify response');
+    return {
+      reset_token: token,
+      expires_in_minutes: data?.expires_in_minutes ?? 15,
+    };
+  },
+
+  async resetPasswordWithToken(
+    email: string,
+    resetToken: string,
+    newPassword: string
+  ): Promise<void> {
+    await skaftinClient.post('/app-api/auth/reset-password', {
+      email,
+      reset_token: resetToken,
+      new_password: newPassword,
+    });
+  },
 };

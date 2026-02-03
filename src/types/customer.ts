@@ -4,6 +4,7 @@
 
 export interface Customer {
   id?: number;
+  company_id?: number;
   name: string;
   email?: string;
   phone?: string;
@@ -28,6 +29,7 @@ export interface Customer {
 }
 
 export interface CreateCustomerDto {
+  company_id?: number;
   name: string;
   email?: string;
   phone?: string;

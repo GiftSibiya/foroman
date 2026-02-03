@@ -1,4 +1,4 @@
-import { InvoiceList } from '@components/InvoiceList';
+import { InvoiceList } from '@/components/elements/InvoiceList';
 
 export function InvoiceListPage() {
   return <InvoiceList />;

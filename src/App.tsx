@@ -1,9 +1,12 @@
 import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { ProtectedRoute } from './components/ProtectedRoute';
+import { ProtectedRoute } from './components/elements/ProtectedRoute';
 import { Landing } from './pages/Landing';
 import { Login } from '@pages/auth/Login';
 import { Register } from '@pages/auth/Register';
 import { VerifyOtp } from '@pages/auth/VerifyOtp';
+import { ForgotPassword } from '@pages/auth/ForgotPassword';
+import { VerifyForgotPasswordOtp } from '@pages/auth/VerifyForgotPasswordOtp';
+import { ResetPassword } from '@pages/auth/ResetPassword';
 import { Onboard } from '@pages/admin/Onboard';
 import { DashboardPage } from '@pages/admin/DashboardPage';
 import { InvoiceListPage } from '@pages/admin/InvoiceListPage';
@@ -15,8 +18,14 @@ import { CustomerFormPage } from '@pages/admin/CustomerFormPage';
 import { ItemsPage } from '@pages/admin/ItemsPage';
 import { ItemDetailPage } from '@pages/admin/ItemDetailPage';
 import { ItemFormPage } from '@pages/admin/ItemFormPage';
-import { QuotationsPage } from '@pages/admin/QuotationsPage';
+import { QuotationListPage } from '@pages/admin/QuotationListPage';
+import { QuotationDetailPage } from '@pages/admin/QuotationDetailPage';
+import { QuotationFormPage } from '@pages/admin/QuotationFormPage';
 import { StatementsPage } from '@pages/admin/StatementsPage';
+import { SettingsPage } from '@pages/admin/SettingsPage';
+import { ProfileSettingsPage } from '@pages/admin/settings/ProfileSettingsPage';
+import { CompanySettingsPage } from '@pages/admin/settings/CompanySettingsPage';
+import { PreferencesSettingsPage } from '@pages/admin/settings/PreferencesSettingsPage';
 import './App.css';
 import { AppLayout } from './layouts/AppLayout';
 
@@ -27,6 +36,9 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-otp" element={<VerifyOtp />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password/verify" element={<VerifyForgotPasswordOtp />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/onboard" element={<Onboard />} />
       <Route path="/app" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/app/dashboard" replace />} />
@@ -49,8 +61,18 @@ function App() {
           <Route path=":id" element={<ItemDetailPage />} />
           <Route path=":id/edit" element={<ItemFormPage />} />
         </Route>
-        <Route path="quotations" element={<QuotationsPage />} />
+        <Route path="quotations" element={<Outlet />}>
+          <Route index element={<QuotationListPage />} />
+          <Route path="create" element={<QuotationFormPage />} />
+          <Route path=":id" element={<QuotationDetailPage />} />
+          <Route path=":id/edit" element={<QuotationFormPage />} />
+        </Route>
         <Route path="statements" element={<StatementsPage />} />
+        <Route path="settings" element={<SettingsPage />}>
+          <Route index element={<ProfileSettingsPage />} />
+          <Route path="company" element={<CompanySettingsPage />} />
+          <Route path="preferences" element={<PreferencesSettingsPage />} />
+        </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

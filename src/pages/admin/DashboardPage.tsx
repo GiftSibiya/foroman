@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import InvoiceService from '@/services/invoiceService';
 import CustomerService from '@/services/customerService';
+import { useCompanyStore } from '@/stores/data/CompanyStore';
 import QuotationService from '@/services/quotationService';
 import ItemService from '@/services/itemService';
 import type { Invoice } from '@/types/invoice';
+import { formatCurrency } from '@/utils/currency';
 import {
   LuUsers,
   LuFileText,
@@ -23,13 +25,13 @@ interface StatCardProps {
 
 function StatCard({ title, value, icon, to, loading }: StatCardProps) {
   const content = (
-    <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-5 flex items-start gap-4 hover:border-slate-300 transition-colors">
-      <div className="p-2.5 rounded-lg bg-indigo-100 text-indigo-600 shrink-0 [&>svg]:w-5 [&>svg]:h-5">
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm p-5 flex items-start gap-4 hover:border-slate-300 dark:hover:border-slate-600 transition-colors">
+      <div className="p-2.5 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-300 shrink-0 [&>svg]:w-5 [&>svg]:h-5">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-slate-500">{title}</p>
-        <p className="mt-1 text-2xl font-semibold text-slate-800 tabular-nums">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
+        <p className="mt-1 text-2xl font-semibold text-slate-800 dark:text-slate-100 tabular-nums">
           {loading ? '—' : value}
         </p>
       </div>
@@ -46,6 +48,7 @@ function StatCard({ title, value, icon, to, loading }: StatCardProps) {
 }
 
 export function DashboardPage() {
+  const companyId = useCompanyStore((s) => s.currentCompany?.id);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     customers: 0,
@@ -61,11 +64,12 @@ export function DashboardPage() {
 
     async function load() {
       try {
+        const companyWhere = companyId != null ? { company_id: companyId } : undefined;
         const [customers, invoices, quotations, items, recent] = await Promise.all([
-          CustomerService.count(),
+          CustomerService.count(companyWhere),
           InvoiceService.count(),
           QuotationService.count(),
-          ItemService.count(),
+          ItemService.count(companyWhere),
           InvoiceService.findAll({
             orderBy: 'issue_date',
             orderDirection: 'DESC',
@@ -88,17 +92,15 @@ export function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [companyId]);
 
-  const formatCurrency = (amount: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-        <p className="mt-1 text-slate-600">Overview of your CRM and sales activity.</p>
+        <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Dashboard</h1>
+        <p className="mt-1 text-slate-600 dark:text-slate-400">Overview of your CRM and sales activity.</p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -132,33 +134,33 @@ export function DashboardPage() {
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800 flex items-center gap-2">
-            <LuTrendingUp className="w-5 h-5 text-indigo-600" />
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+            <LuTrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             Recent Invoices
           </h2>
           <Link
             to="/app/invoices"
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-500 no-underline"
+            className="text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 no-underline"
           >
             View all
           </Link>
         </div>
         <div className="overflow-x-auto">
           {recentError && (
-            <div className="p-4 text-sm text-amber-700 bg-amber-50 border-b border-amber-200">
+            <div className="p-4 text-sm text-amber-700 dark:text-amber-200 bg-amber-50 dark:bg-amber-900/30 border-b border-amber-200 dark:border-amber-800">
               {recentError}
             </div>
           )}
           {loading ? (
-            <div className="p-8 text-center text-slate-500">Loading…</div>
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">Loading…</div>
           ) : recentInvoices.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">No invoices yet.</div>
+            <div className="p-8 text-center text-slate-500 dark:text-slate-400">No invoices yet.</div>
           ) : (
             <table className="w-full text-sm">
               <thead>
-                <tr className="bg-slate-50 text-left text-slate-600 font-medium">
+                <tr className="bg-slate-50 dark:bg-slate-800/50 text-left text-slate-600 dark:text-slate-300 font-medium">
                   <th className="px-5 py-3">Invoice #</th>
                   <th className="px-5 py-3">Customer</th>
                   <th className="px-5 py-3">Date</th>
@@ -169,22 +171,22 @@ export function DashboardPage() {
               </thead>
               <tbody>
                 {recentInvoices.map((inv) => (
-                  <tr key={inv.id} className="border-t border-slate-100 hover:bg-slate-50/50">
-                    <td className="px-5 py-3 font-medium text-slate-800">{inv.invoice_number}</td>
-                    <td className="px-5 py-3 text-slate-700">{inv.customer_name}</td>
-                    <td className="px-5 py-3 text-slate-600">{formatDate(inv.issue_date)}</td>
+                  <tr key={inv.id} className="border-t border-slate-100 dark:border-slate-700 hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
+                    <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">{inv.invoice_number}</td>
+                    <td className="px-5 py-3 text-slate-700 dark:text-slate-300">{inv.customer_name}</td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{formatDate(inv.issue_date)}</td>
                     <td className="px-5 py-3">
-                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                      <span className="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
                         {inv.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-right font-medium text-slate-800">
+                    <td className="px-5 py-3 text-right font-medium text-slate-800 dark:text-slate-100">
                       {formatCurrency(inv.total)}
                     </td>
                     <td className="px-5 py-3">
                       <Link
                         to={`/app/invoices/${inv.id}`}
-                        className="text-indigo-600 hover:text-indigo-500 font-medium no-underline"
+                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium no-underline"
                       >
                         View
                       </Link>

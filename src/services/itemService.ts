@@ -6,7 +6,7 @@
 import { skaftinClient } from '../backend';
 import type { Item, CreateItemDto } from '../types/item';
 
-const TABLE_NAME = 'items';
+const TABLE_NAME = 'stock_items';
 
 export class ItemService {
   static async findAll(params?: {
@@ -16,7 +16,7 @@ export class ItemService {
     limit?: number;
     offset?: number;
   }): Promise<Item[]> {
-    const response = await skaftinClient.post<{ rows: Item[]; rowCount: number }>(
+    const response = await skaftinClient.post<{ rows: Item[]; rowCount: number } | Item[]>(
       `/app-api/database/tables/${TABLE_NAME}/select`,
       {
         limit: params?.limit ?? 5000,
@@ -26,11 +26,13 @@ export class ItemService {
         ...(params?.orderDirection && { orderDirection: params.orderDirection }),
       }
     );
-    return response.data.rows || [];
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    return data?.rows || [];
   }
 
   static async findById(id: number): Promise<Item | null> {
-    const response = await skaftinClient.post<{ rows: Item[] }>(
+    const response = await skaftinClient.post<{ rows: Item[] } | Item[]>(
       `/app-api/database/tables/${TABLE_NAME}/select`,
       {
         where: { id },
@@ -38,7 +40,9 @@ export class ItemService {
         offset: 0,
       }
     );
-    return response.data.rows?.[0] || null;
+    const data = response.data;
+    if (Array.isArray(data)) return data[0] || null;
+    return data?.rows?.[0] || null;
   }
 
   static async create(data: CreateItemDto): Promise<Item> {
@@ -71,7 +75,7 @@ export class ItemService {
   }
 
   static async count(where?: Record<string, unknown>): Promise<number> {
-    const response = await skaftinClient.post<{ rowCount: number }>(
+    const response = await skaftinClient.post<{ rows: Item[]; rowCount: number } | Item[]>(
       `/app-api/database/tables/${TABLE_NAME}/select`,
       {
         ...(where && { where }),
@@ -79,7 +83,9 @@ export class ItemService {
         offset: 0,
       }
     );
-    return response.data.rowCount || 0;
+    const data = response.data;
+    if (Array.isArray(data)) return data.length;
+    return (data as { rowCount?: number })?.rowCount || 0;
   }
 }
 

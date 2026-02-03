@@ -4,6 +4,7 @@
 
 export interface Invoice {
   id?: number;
+  company_id?: number | null;
   invoice_number: string;
   customer_name: string;
   customer_email?: string;
@@ -25,6 +26,7 @@ export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
 export interface InvoiceItem {
   id?: number;
   invoice_id?: number;
+  item_id?: number;
   description: string;
   quantity: number;
   unit_price: number;
@@ -32,6 +34,7 @@ export interface InvoiceItem {
 }
 
 export interface CreateInvoiceDto {
+  company_id?: number | null;
   invoice_number: string;
   customer_name: string;
   customer_email?: string;

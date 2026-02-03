@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import ItemService from '@/services/itemService';
+import { useCompanyStore } from '@/stores/data/CompanyStore';
 import type { CreateItemDto } from '@/types/item';
 import toast from 'react-hot-toast';
 
@@ -9,12 +10,14 @@ const initial: CreateItemDto = {
   sku: '',
   description: '',
   unit_price: 0,
+  quantity: 0,
   tax_rate: undefined,
 };
 
 export function ItemFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const companyId = useCompanyStore((s) => s.currentCompany?.id);
   const isEdit = Boolean(id);
   const [form, setForm] = useState<CreateItemDto>(initial);
   const [saving, setSaving] = useState(false);
@@ -31,6 +34,7 @@ export function ItemFormPage() {
             sku: item.sku ?? '',
             description: item.description ?? '',
             unit_price: item.unit_price ?? 0,
+            quantity: item.quantity ?? 0,
             tax_rate: item.tax_rate,
           });
         }
@@ -60,11 +64,14 @@ export function ItemFormPage() {
     }
     setSaving(true);
     try {
+      const quantity = form.quantity != null ? Number(form.quantity) : 0;
       const payload = {
+        ...(companyId != null && { company_id: companyId }),
         name: form.name.trim(),
         sku: form.sku?.trim() || undefined,
         description: form.description?.trim() || undefined,
         unit_price: unitPrice,
+        quantity: Number.isNaN(quantity) || quantity < 0 ? 0 : quantity,
         tax_rate: form.tax_rate != null ? Number(form.tax_rate) : undefined,
       };
       if (isEdit && id) {
@@ -83,6 +90,8 @@ export function ItemFormPage() {
     }
   };
 
+  const hasNoCompany = !isEdit && companyId == null;
+
   if (loading) {
     return <div className="text-slate-500">Loading…</div>;
   }
@@ -98,6 +107,14 @@ export function ItemFormPage() {
           ← Back to stock
         </Link>
       </div>
+      {hasNoCompany && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Add your company first before creating items.{' '}
+          <Link to="/onboard" className="font-medium text-amber-900 underline hover:no-underline">
+            Add company
+          </Link>
+        </div>
+      )}
       <form
         onSubmit={handleSubmit}
         className="max-w-xl space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
@@ -120,6 +137,18 @@ export function ItemFormPage() {
             type="text"
             value={form.sku ?? ''}
             onChange={(e) => update('sku', e.target.value)}
+            className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+          />
+        </div>
+        <div>
+          <label htmlFor="quantity" className="block text-sm font-medium text-slate-700">Quantity</label>
+          <input
+            id="quantity"
+            type="number"
+            min={0}
+            step={1}
+            value={form.quantity ?? 0}
+            onChange={(e) => update('quantity', e.target.value ? Number(e.target.value) : 0)}
             className="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-800 shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
           />
         </div>
@@ -162,7 +191,7 @@ export function ItemFormPage() {
         <div className="flex gap-3 pt-2">
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || hasNoCompany}
             className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
           >
             {saving ? 'Saving…' : isEdit ? 'Update item' : 'Create item'}
